@@ -2,15 +2,6 @@ package admission
 
 import (
 	"sync"
-
-	"github.com/spacemonkeygo/errors"
-	"gopkg.in/spacemonkeygo/monkit.v2"
-)
-
-var (
-	mon = monkit.Package()
-
-	Error = errors.NewClass("admission")
 )
 
 type Handler interface {

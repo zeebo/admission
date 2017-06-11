@@ -23,8 +23,6 @@ type Dispatcher struct {
 }
 
 func (d *Dispatcher) Run(ctx context.Context) (err error) {
-	defer mon.Task()(&ctx)(&err)
-
 	num_messages := d.NumMessages
 	if num_messages == 0 {
 		num_messages = 128
@@ -46,7 +44,7 @@ func (d *Dispatcher) Run(ctx context.Context) (err error) {
 
 		n, err := pc.ReadBatch(msgs, d.Flags)
 		if err != nil {
-			return Error.Wrap(err)
+			return err
 		}
 
 		// now fix up valid

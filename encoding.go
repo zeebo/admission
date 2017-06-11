@@ -10,6 +10,11 @@ type Writer struct {
 	w incenc.Writer
 }
 
+// Reset clears the state of the Writer.
+func (w *Writer) Reset() {
+	w.w.Reset()
+}
+
 // Begin appends header information to the buffer.
 func (w *Writer) Begin(in []byte, application string,
 	instance_id []byte) []byte {
