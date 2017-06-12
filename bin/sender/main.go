@@ -36,6 +36,6 @@ func run(ctx context.Context) (err error) {
 		if err != nil {
 			return err
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }

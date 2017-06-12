@@ -5,10 +5,15 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/zeebo/admission"
-	"github.com/zeebo/float16"
+	"github.com/zeebo/admission/admproto"
+	"gopkg.in/spacemonkeygo/monkit.v2"
 )
+
+var mon = monkit.Package()
 
 func main() {
 	if err := run(context.Background()); err != nil {
@@ -18,36 +23,46 @@ func main() {
 }
 
 func run(ctx context.Context) (err error) {
+	go func() {
+		for {
+			time.Sleep(10 * time.Second)
+			monkit.Default.Stats(func(name string, value float64) {
+				if strings.Contains(name, "times") {
+					duration := time.Duration(float64(time.Second) * value)
+					fmt.Println(name, duration)
+				} else {
+					fmt.Println(name, value)
+				}
+			})
+		}
+	}()
+
 	pc, err := net.ListenPacket("udp", ":6969")
 	if err != nil {
 		return err
 	}
 
 	d := admission.Dispatcher{
-		Handler:    printHandler{},
+		Handler:    noopHandler{},
 		PacketConn: pc,
 	}
 
 	return d.Run(ctx)
 }
 
-type printHandler struct{}
+type noopHandler struct{}
 
-func (printHandler) Handle(m *admission.Message) {
-	r := admission.NewReaderWith(m.Scratch[:])
-	data := m.Data
+var noopHandler_Handle_Task = mon.Task()
 
-	data, app, inst_id := r.Begin(data)
-	fmt.Printf("application: %s\n", app)
-	fmt.Printf("instance_id: %x\n", inst_id)
+func (noopHandler) Handle(m *admission.Message) {
+	finish := noopHandler_Handle_Task(nil)
 
-	var (
-		key   []byte
-		value float16.Float16
-	)
+	r := admproto.NewReaderWith(m.Scratch[:])
 
+	data, _, _ := r.Begin(m.Data)
 	for len(data) > 0 {
-		data, key, value = r.Next(data)
-		fmt.Printf("\t%s: %v\n", key, value)
+		data, _, _ = r.Next(data)
 	}
+
+	finish(nil)
 }

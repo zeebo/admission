@@ -1,3 +1,4 @@
+// package admmonkit hooks up admission with monkit.v2
 package admmonkit
 
 import (
@@ -5,7 +6,7 @@ import (
 	"net"
 
 	"github.com/spacemonkeygo/spacelog"
-	"github.com/zeebo/admission"
+	"github.com/zeebo/admission/admproto"
 	"github.com/zeebo/float16"
 	"gopkg.in/spacemonkeygo/monkit.v2"
 )
@@ -29,6 +30,8 @@ type Options struct {
 	Registry *monkit.Registry
 }
 
+// Send will push all of the metrics in the registry to the address with the
+// application and instance id in the options.
 func Send(ctx context.Context, opts Options) (err error) {
 	addr, err := net.ResolveUDPAddr("udp", opts.Address)
 	if err != nil {
@@ -50,7 +53,7 @@ func Send(ctx context.Context, opts Options) (err error) {
 
 	var (
 		buf []byte
-		w   admission.Writer
+		w   admproto.Writer
 	)
 
 	metrics := 0
@@ -63,7 +66,7 @@ func Send(ctx context.Context, opts Options) (err error) {
 		// add the value to the buffer
 		value16, ok := float16.FromFloat64(value)
 		if !ok {
-			logger.Infof("skipping %q because value unrepresentable: %v",
+			logger.Debugf("skipping %q because value unrepresentable: %v",
 				name, value)
 			return
 		}
@@ -73,7 +76,7 @@ func Send(ctx context.Context, opts Options) (err error) {
 		// if we're over the packet size, send the previous value and start
 		// over.
 		if len(buf) > opts.PacketSize {
-			logger.Infof("sending packet size %d bytes containing %d metrics",
+			logger.Debugf("sending packet size %d bytes containing %d metrics",
 				len(before), metrics)
 			sendPacket(ctx, conn, before)
 
@@ -86,7 +89,7 @@ func Send(ctx context.Context, opts Options) (err error) {
 		metrics++
 	})
 
-	logger.Infof("sending packet size %d bytes containing %d metrics",
+	logger.Debugf("sending packet size %d bytes containing %d metrics",
 		len(buf), metrics)
 	sendPacket(ctx, conn, buf)
 

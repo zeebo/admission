@@ -1,10 +1,14 @@
+// package admission is a fast way to ingest/send metrics.
 package admission
 
 import (
 	"sync"
 )
 
+// Handler is a type that can handle messages.
 type Handler interface {
+	// Handle should do things with the message Data. No fields of the message
+	// should be held on to after the call has returned.
 	Handle(m *Message)
 }
 
@@ -13,13 +17,13 @@ type Message struct {
 	// this scratch space.
 	Scratch [256]byte
 
-	// Data read from the Read call
+	// Data contained in the Message to handle.
 	Data []byte
 
 	// data buffer.
 	buf [1024]byte
 
-	// points at buf. array to avoid another allocation.
+	// points at buf. array to avoid an allocation.
 	buffers [1][]byte
 }
 
