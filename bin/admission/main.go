@@ -5,17 +5,20 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/zeebo/admission"
 	"github.com/zeebo/admission/admproto"
 	"gopkg.in/spacemonkeygo/monkit.v2"
+	"gopkg.in/spacemonkeygo/monkit.v2/environment"
 )
 
 var mon = monkit.Package()
 
 func main() {
+	environment.Register(monkit.Default)
 	if err := run(context.Background()); err != nil {
 		fmt.Fprintln(os.Stderr, "admission:", err)
 		os.Exit(1)
@@ -25,9 +28,13 @@ func main() {
 func run(ctx context.Context) (err error) {
 	go func() {
 		for {
-			time.Sleep(10 * time.Second)
+			time.Sleep(time.Second)
+			cmd := exec.Command("clear")
+			cmd.Stdout = os.Stdout
+			cmd.Run()
 			monkit.Default.Stats(func(name string, value float64) {
-				if strings.Contains(name, "times") {
+				if strings.Contains(name, "times") &&
+					!strings.Contains(name, "count") {
 					duration := time.Duration(float64(time.Second) * value)
 					fmt.Println(name, duration)
 				} else {

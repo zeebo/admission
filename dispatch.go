@@ -2,7 +2,11 @@ package admission
 
 import (
 	"context"
+	"encoding/binary"
+	"hash/crc32"
+	"log"
 	"net"
+	"runtime"
 
 	"golang.org/x/net/ipv4"
 )
@@ -11,6 +15,8 @@ import (
 // Dispatcher Run loop.
 const DefaultMessages = 128
 
+// Dispatcher reads Messages on the PacketConn and forwards them into the
+// Handler in parallel.
 type Dispatcher struct {
 	// Handler is an interface called with each read Message.
 	Handler Handler
@@ -52,20 +58,47 @@ func (d *Dispatcher) Run(ctx context.Context) (err error) {
 		if err != nil {
 			return err
 		}
+		messagesRead.Observe(int64(n))
 
 		// fix up the Data slices, pass them off to be handled in a goroutine
 		// and clear them out of the in array for the next round of packets.
 		for i := 0; i < n; i++ {
 			in[i].Data = in[i].buf[:msgs[i].N]
+			in[i].RemoteAddr = msgs[i].Addr
 			go handleMessage(ctx, d.Handler, in[i])
 			in[i] = nil
 		}
 	}
 }
 
+// handleMessage passes the message to the handler and returns it to the pool
+// once it is done. it is the layer of safety around panics.
 func handleMessage(ctx context.Context, h Handler, m *Message) {
-	h.Handle(m)
+	// first check that the message's crc is valid. silently drop any packets
+	// that don't checksum.
+	offset := len(m.Data) - 4
+	if offset < 0 {
+		return
+	}
+	check := crc32.Checksum(m.Data[:offset], castTable)
+	got := binary.BigEndian.Uint32(m.Data[offset:])
+	if check != got {
+		return
+	}
 
-	// don't bother with defer sicne this is run in a goroutine anyway.
-	putMessage(m)
+	// we pass addr in case m.RemoteAddr is changed during the update call
+	defer func(m *Message, addr net.Addr) {
+		if v := recover(); v != nil {
+			// get the stack and ensure it ends with a newline
+			buf := make([]byte, 64<<10)
+			buf = buf[:runtime.Stack(buf, false)]
+			log.Printf("admission: panic from %v: %v\n%s", addr, v, buf)
+		}
+
+		putMessage(m)
+	}(m, m.RemoteAddr)
+
+	// slice it off and pass it on
+	m.Data = m.Data[:offset]
+	h.Handle(m)
 }

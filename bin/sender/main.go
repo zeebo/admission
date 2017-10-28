@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/spacemonkeygo/flagfile"
 	"github.com/spacemonkeygo/spacelog/setup"
@@ -36,6 +35,6 @@ func run(ctx context.Context) (err error) {
 		if err != nil {
 			return err
 		}
-		time.Sleep(1 * time.Second)
+		// time.Sleep(1 * time.Second)
 	}
 }

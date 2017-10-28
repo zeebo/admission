@@ -3,9 +3,11 @@ package admmonkit
 
 import (
 	"context"
+	"hash/crc32"
 	"net"
 
 	"github.com/spacemonkeygo/spacelog"
+	"github.com/zeebo/admission"
 	"github.com/zeebo/admission/admproto"
 	"github.com/zeebo/float16"
 	"gopkg.in/spacemonkeygo/monkit.v2"
@@ -29,6 +31,8 @@ type Options struct {
 	// Registry to pull stats from. If nil, monkit.Default is used.
 	Registry *monkit.Registry
 }
+
+var castTable = crc32.MakeTable(crc32.Castagnoli)
 
 // Send will push all of the metrics in the registry to the address with the
 // application and instance id in the options.
@@ -74,10 +78,11 @@ func Send(ctx context.Context, opts Options) (err error) {
 		buf = w.Append(buf, name, value16)
 
 		// if we're over the packet size, send the previous value and start
-		// over.
-		if len(buf) > opts.PacketSize {
+		// over. be sure to account for the checksum that sendPacket adds.
+		if len(buf)+4 > opts.PacketSize {
 			logger.Debugf("sending packet size %d bytes containing %d metrics",
 				len(before), metrics)
+
 			sendPacket(ctx, conn, before)
 
 			w.Reset()
@@ -97,6 +102,6 @@ func Send(ctx context.Context, opts Options) (err error) {
 }
 
 func sendPacket(ctx context.Context, conn *net.UDPConn, buf []byte) {
-	_, err := conn.Write(buf)
+	_, err := conn.Write(admission.AddChecksum(buf))
 	logger.Errore(err)
 }
