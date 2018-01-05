@@ -3,11 +3,9 @@ package admmonkit
 
 import (
 	"context"
-	"hash/crc32"
 	"net"
 
 	"github.com/spacemonkeygo/spacelog"
-	"github.com/zeebo/admission"
 	"github.com/zeebo/admission/admproto"
 	"github.com/zeebo/float16"
 	"gopkg.in/spacemonkeygo/monkit.v2"
@@ -31,8 +29,6 @@ type Options struct {
 	// Registry to pull stats from. If nil, monkit.Default is used.
 	Registry *monkit.Registry
 }
-
-var castTable = crc32.MakeTable(crc32.Castagnoli)
 
 // Send will push all of the metrics in the registry to the address with the
 // application and instance id in the options.
@@ -102,6 +98,6 @@ func Send(ctx context.Context, opts Options) (err error) {
 }
 
 func sendPacket(ctx context.Context, conn *net.UDPConn, buf []byte) {
-	_, err := conn.Write(admission.AddChecksum(buf))
+	_, err := conn.Write(admproto.AddChecksum(buf))
 	logger.Errore(err)
 }

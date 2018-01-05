@@ -1,0 +1,19 @@
+[[constraint]]
+  branch = "master"
+  name = "github.com/spacemonkeygo/flagfile"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/spacemonkeygo/spacelog"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/zeebo/float16"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/zeebo/incenc"
+
+[[constraint]]
+  branch = "v2"
+  name = "gopkg.in/spacemonkeygo/monkit.v2"

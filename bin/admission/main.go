@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"hash/crc32"
 	"net"
 	"os"
 	"os/exec"
@@ -44,14 +45,20 @@ func run(ctx context.Context) (err error) {
 		}
 	}()
 
-	pc, err := net.ListenPacket("udp", ":6969")
+	laddr, err := net.ResolveUDPAddr("udp", ":6969")
 	if err != nil {
 		return err
 	}
 
+	conn, err := net.ListenUDP("udp", laddr)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
 	d := admission.Dispatcher{
-		Handler:    noopHandler{},
-		PacketConn: pc,
+		Handler: noopHandler{},
+		Conn:    conn,
 	}
 
 	return d.Run(ctx)
@@ -61,12 +68,20 @@ type noopHandler struct{}
 
 var noopHandler_Handle_Task = mon.Task()
 
-func (noopHandler) Handle(m *admission.Message) {
+var castTable = crc32.MakeTable(crc32.Castagnoli)
+
+func (noopHandler) Handle(ctx context.Context, m *admission.Message) {
 	finish := noopHandler_Handle_Task(nil)
+
+	data, err := admproto.CheckChecksum(m.Data)
+	if err != nil {
+		finish(&err)
+		return
+	}
 
 	r := admproto.NewReaderWith(m.Scratch[:])
 
-	data, _, _ := r.Begin(m.Data)
+	data, _, _ = r.Begin(data)
 	for len(data) > 0 {
 		data, _, _ = r.Next(data)
 	}
