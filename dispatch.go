@@ -2,7 +2,7 @@ package admission
 
 import (
 	"context"
-	"net"
+	"syscall"
 
 	"github.com/zeebo/admission/batch"
 	"github.com/zeebo/errs"
@@ -25,7 +25,7 @@ type Dispatcher struct {
 	Handler Handler
 
 	// Conn is the connection the packets are read from.
-	Conn *net.UDPConn
+	Conn syscall.RawConn
 
 	// NumMessages is the number of messages to attempt to read at once. If
 	// zero, DefaultMessages is used.
@@ -57,10 +57,6 @@ func (d Dispatcher) Run(ctx context.Context) (err error) {
 	done := ctx.Done()
 	msgs := make([]*Message, num_messages)
 	sem := make(chan struct{}, in_flight)
-	sc, err := d.Conn.SyscallConn()
-	if err != nil {
-		return errs.Wrap(err)
-	}
 
 	for {
 		// check our context.
@@ -82,7 +78,7 @@ func (d Dispatcher) Run(ctx context.Context) (err error) {
 			}
 		}
 
-		n, err := batch.Read(sc, msgs)
+		n, err := batch.Read(d.Conn, msgs)
 		if err != nil {
 			return err
 		}
