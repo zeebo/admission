@@ -4,7 +4,7 @@ import (
 	"context"
 	"syscall"
 
-	"github.com/zeebo/admission/batch"
+	"github.com/zeebo/admission/internal/batch"
 	"github.com/zeebo/errs"
 )
 
@@ -80,7 +80,7 @@ func (d Dispatcher) Run(ctx context.Context) (err error) {
 
 		n, err := batch.Read(d.Conn, msgs)
 		if err != nil {
-			return err
+			return errs.Wrap(err)
 		}
 		if d.Hooks.ReadMessages != nil {
 			d.Hooks.ReadMessages(ctx, n)

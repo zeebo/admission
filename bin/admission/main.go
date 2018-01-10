@@ -8,10 +8,12 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/zeebo/admission"
 	"github.com/zeebo/admission/admproto"
+	"github.com/zeebo/errs"
 	"gopkg.in/spacemonkeygo/monkit.v2"
 	"gopkg.in/spacemonkeygo/monkit.v2/environment"
 )
@@ -21,7 +23,7 @@ var mon = monkit.Package()
 func main() {
 	environment.Register(monkit.Default)
 	if err := run(context.Background()); err != nil {
-		fmt.Fprintln(os.Stderr, "admission:", err)
+		fmt.Fprintf(os.Stderr, "admission: %+v\n", err)
 		os.Exit(1)
 	}
 }
@@ -45,20 +47,18 @@ func run(ctx context.Context) (err error) {
 		}
 	}()
 
-	laddr, err := net.ResolveUDPAddr("udp", ":6969")
+	conn, err := net.ListenPacket("udp", ":6969")
 	if err != nil {
-		return err
+		return errs.Wrap(err)
 	}
-
-	conn, err := net.ListenUDP("udp", laddr)
+	rc, err := conn.(syscall.Conn).SyscallConn()
 	if err != nil {
-		return err
+		return errs.Wrap(err)
 	}
-	defer conn.Close()
 
 	d := admission.Dispatcher{
 		Handler: noopHandler{},
-		Conn:    conn,
+		Conn:    rc,
 	}
 
 	return d.Run(ctx)
