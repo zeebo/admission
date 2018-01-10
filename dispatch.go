@@ -4,7 +4,8 @@ import (
 	"context"
 	"net"
 
-	"github.com/zeebo/admission/internal/ipv4"
+	"github.com/zeebo/admission/batch"
+	"github.com/zeebo/errs"
 )
 
 const (
@@ -36,8 +37,10 @@ type Dispatcher struct {
 
 	// Hooks provide callbacks for events in the dispatcher.
 	Hooks struct {
-		ReadMessages   func(n int) // when messages were read with how many.
-		DroppedMessage func()      // when a message is dropped.
+		// when messages were read with how many.
+		ReadMessages func(ctx context.Context, n int)
+		// when a message is dropped.
+		DroppedMessage func(ctx context.Context)
 	}
 }
 
@@ -51,24 +54,40 @@ func (d Dispatcher) Run(ctx context.Context) (err error) {
 		in_flight = DefaultInFlight
 	}
 
+	done := ctx.Done()
 	msgs := make([]*Message, num_messages)
 	sem := make(chan struct{}, in_flight)
+	sc, err := d.Conn.SyscallConn()
+	if err != nil {
+		return errs.Wrap(err)
+	}
 
 	for {
-		// fill in any nil messages, and build up the ipv4.Message array for
-		// passing to ReadBatch.
+		// check our context.
+		//
+		// TODO(jeff): it'd be nice if there was a way to cancel the read but
+		// i think that requires a bunch of read deadline business that i'd
+		// like to avoid.
+		select {
+		case <-done:
+			return errs.Wrap(ctx.Err())
+		default:
+		}
+
+		// fill in any nil messages, and build up the Message array for
+		// passing to batch.Read.
 		for i := range msgs {
 			if msgs[i] == nil {
 				msgs[i] = getMessage()
 			}
 		}
 
-		n, err := ipv4.ReadBatch(d.Conn, msgs)
+		n, err := batch.Read(sc, msgs)
 		if err != nil {
 			return err
 		}
 		if d.Hooks.ReadMessages != nil {
-			d.Hooks.ReadMessages(n)
+			d.Hooks.ReadMessages(ctx, n)
 		}
 
 		// fix up the Data slices, pass them off to be handled in a goroutine
@@ -80,7 +99,7 @@ func (d Dispatcher) Run(ctx context.Context) (err error) {
 				msgs[i] = nil
 			default:
 				if d.Hooks.DroppedMessage != nil {
-					d.Hooks.DroppedMessage()
+					d.Hooks.DroppedMessage(ctx)
 				}
 			}
 		}

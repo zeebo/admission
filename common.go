@@ -5,7 +5,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/zeebo/admission/internal/ipv4"
+	"github.com/zeebo/admission/batch"
 )
 
 // Handler is a type that can handle messages.
@@ -16,7 +16,7 @@ type Handler interface {
 }
 
 // Message is what is handled by a handler.
-type Message = ipv4.Message
+type Message = batch.Message
 
 var messagePool = sync.Pool{
 	New: func() interface{} { return new(Message) },

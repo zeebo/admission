@@ -1,4 +1,4 @@
-package ipv4
+package batch
 
 // Message is what we read from/to.
 type Message struct {
