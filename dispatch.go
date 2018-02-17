@@ -66,7 +66,7 @@ func (d Dispatcher) Run(ctx context.Context) (err error) {
 		// like to avoid.
 		select {
 		case <-done:
-			return errs.Wrap(ctx.Err())
+			return nil
 		default:
 		}
 
