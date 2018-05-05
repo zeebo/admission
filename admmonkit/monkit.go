@@ -3,16 +3,14 @@ package admmonkit
 
 import (
 	"context"
+	"log"
 	"net"
 
-	"github.com/spacemonkeygo/spacelog"
 	"github.com/zeebo/admission/admproto"
-	"github.com/zeebo/float16"
 	"gopkg.in/spacemonkeygo/monkit.v2"
 )
 
-var logger = spacelog.GetLogger()
-
+// Options allows you to control where and how Send sends the data.
 type Options struct {
 	// Application to send with
 	Application string
@@ -56,48 +54,69 @@ func Send(ctx context.Context, opts Options) (err error) {
 		w   admproto.Writer
 	)
 
-	metrics := 0
-	buf = w.Begin(buf, opts.Application, opts.InstanceId)
-
 	opts.Registry.Stats(func(name string, value float64) {
-		// keep track of the buffer before we send
-		before := buf
-
-		// add the value to the buffer
-		value16, ok := float16.FromFloat64(value)
-		if !ok {
-			logger.Debugf("skipping %q because value unrepresentable: %v",
-				name, value)
+		// if we have any errors, stop.
+		if err != nil {
 			return
 		}
 
-		buf = w.Append(buf, name, value16)
+		for {
+			// keep track of the buffer before we send
+			before := buf
 
-		// if we're over the packet size, send the previous value and start
-		// over. be sure to account for the checksum that sendPacket adds.
-		if len(buf)+4 > opts.PacketSize {
-			logger.Debugf("sending packet size %d bytes containing %d metrics",
-				len(before), metrics)
+			// always ensure the buffer has the prefix in it.
+			if len(buf) == 0 {
+				// if we can't add the application and instance id, it's fatal.
+				buf, err = w.Begin(buf, opts.Application, opts.InstanceId)
+				if err != nil {
+					return
+				}
+			}
 
-			sendPacket(ctx, conn, before)
+			// add the value to the buffer
+			buf, err = w.Append(buf, name, value)
+			if err != nil {
+				// not fatal, just back up to before, but let someone know
+				// it has been skipped.
+				log.Println("skipped metric", name, "because", err)
+				buf, err = before, nil
+				return
+			}
 
+			// if we're still in the packet size, then get the next metric.
+			if len(buf)+4 <= opts.PacketSize {
+				return
+			}
+
+			// if we're over the packet size, send the previous value and start
+			// over. be sure to account for the checksum that sendPacket adds.
+			// if buf was empty at the start, we should just send it.
+			// otherwise we should send the previous value.
+			if len(before) == 0 {
+				sendPacket(ctx, conn, buf)
+			} else {
+				sendPacket(ctx, conn, before)
+			}
+
+			// after sending the packet, we should reset the buffer and try to
+			// add the point again.
 			w.Reset()
-			metrics = 0
-			buf = w.Begin(buf[:0], opts.Application, opts.InstanceId)
-			buf = w.Append(buf, name, value16)
+			buf = buf[:0]
 		}
-
-		metrics++
 	})
 
-	logger.Debugf("sending packet size %d bytes containing %d metrics",
-		len(buf), metrics)
-	sendPacket(ctx, conn, buf)
+	// send off any remainder buf. we're guaranteed by the loop above that if
+	// there is any data in buf it forms a valid packet with metrics in it.
+	if err == nil && len(buf) > 0 {
+		sendPacket(ctx, conn, buf)
+	}
 
-	return nil
+	return err
 }
 
+// sendPacket is a helper that adds a checksum to the provided buffer and sends
+// it to the conn. It logs if there was an error.
 func sendPacket(ctx context.Context, conn *net.UDPConn, buf []byte) {
 	_, err := conn.Write(admproto.AddChecksum(buf))
-	logger.Errore(err)
+	log.Println("failed to send packet:", err)
 }

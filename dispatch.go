@@ -11,7 +11,7 @@ import (
 const (
 	// DefaultMessages is the number of Messages passed to a ReadBatch call
 	// in the Dispatcher Run loop.
-	DefaultMessages = 128
+	DefaultMessages = 16
 
 	// DefaultInFlight is the number of concurrent calls to the Handler
 	// allowed in the Run loop. If it would go over, the message is dropped.
@@ -44,6 +44,8 @@ type Dispatcher struct {
 	}
 }
 
+// Run reads messages and passes them to the handler in their own goroutines
+// until the context is cancelled.
 func (d Dispatcher) Run(ctx context.Context) (err error) {
 	num_messages := d.NumMessages
 	if num_messages == 0 {

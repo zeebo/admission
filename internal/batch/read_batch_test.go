@@ -14,13 +14,14 @@ func assertNoError(t *testing.T, err error) {
 }
 
 func TestRead(t *testing.T) {
-	// do a huge ceremony to pipe two udp conns. hope this addr is usable!
-	addr, err := net.ResolveUDPAddr("udp", ":16663")
+	// do a huge ceremony to pipe two udp conns.
+	iconn1, err := net.ListenPacket("udp", ":0")
 	assertNoError(t, err)
+	defer iconn1.Close()
 
-	conn1, err := net.ListenUDP("udp", addr)
-	assertNoError(t, err)
-	defer conn1.Close()
+	// type assert concrete udp stuff
+	conn1 := iconn1.(*net.UDPConn)
+	addr := conn1.LocalAddr().(*net.UDPAddr)
 
 	conn2, err := net.DialUDP("udp", nil, addr)
 	assertNoError(t, err)
@@ -30,9 +31,9 @@ func TestRead(t *testing.T) {
 	sc, err := conn1.SyscallConn()
 	assertNoError(t, err)
 
-	// give it a second
+	// give it a second or ten
 	chm := make(chan *Message)
-	time.AfterFunc(time.Second, func() { close(chm) })
+	time.AfterFunc(10*time.Second, func() { close(chm) })
 
 	// try to read it
 	go func() {
