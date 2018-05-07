@@ -26,6 +26,9 @@ type Options struct {
 
 	// Registry to pull stats from. If nil, monkit.Default is used.
 	Registry *monkit.Registry
+
+	// ProtoOps allows you to set protocol options.
+	ProtoOpts admproto.Options
 }
 
 // Send will push all of the metrics in the registry to the address with the
@@ -51,7 +54,7 @@ func Send(ctx context.Context, opts Options) (err error) {
 
 	var (
 		buf []byte
-		w   admproto.Writer
+		w   = admproto.NewWriterWith(opts.ProtoOpts)
 	)
 
 	opts.Registry.Stats(func(name string, value float64) {
@@ -118,5 +121,7 @@ func Send(ctx context.Context, opts Options) (err error) {
 // it to the conn. It logs if there was an error.
 func sendPacket(ctx context.Context, conn *net.UDPConn, buf []byte) {
 	_, err := conn.Write(admproto.AddChecksum(buf))
-	log.Println("failed to send packet:", err)
+	if err != nil {
+		log.Println("failed to send packet:", err)
+	}
 }
