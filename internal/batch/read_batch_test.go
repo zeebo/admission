@@ -15,20 +15,20 @@ func assertNoError(t *testing.T, err error) {
 
 func TestRead(t *testing.T) {
 	// do a huge ceremony to pipe two udp conns.
-	iconn1, err := net.ListenPacket("udp", ":0")
+	listener, err := net.ListenPacket("udp", ":0")
 	assertNoError(t, err)
-	defer iconn1.Close()
+	defer listener.Close()
 
 	// type assert concrete udp stuff
-	conn1 := iconn1.(*net.UDPConn)
-	addr := conn1.LocalAddr().(*net.UDPAddr)
+	listenerConn := listener.(*net.UDPConn)
+	addr := listenerConn.LocalAddr().(*net.UDPAddr)
 
-	conn2, err := net.DialUDP("udp", nil, addr)
+	writerConn, err := net.DialUDP("udp", nil, addr)
 	assertNoError(t, err)
-	defer conn2.Close()
+	defer writerConn.Close()
 
 	// do a huge ceremony to read and write a packet
-	sc, err := conn1.SyscallConn()
+	listnerRawConn, err := listenerConn.SyscallConn()
 	assertNoError(t, err)
 
 	// give it a second or ten
@@ -38,12 +38,15 @@ func TestRead(t *testing.T) {
 	// try to read it
 	go func() {
 		msg := new(Message)
-		Read(sc, []*Message{msg})
+		n, err := Read(listnerRawConn, []*Message{msg})
+		if n != 1 || err != nil {
+			t.Fatalf("read error: %v %v", n, err)
+		}
 		chm <- msg
 	}()
 
 	// write it
-	conn2.Write([]byte("hello"))
+	writerConn.Write([]byte("hello"))
 	msg := <-chm
 
 	// check it

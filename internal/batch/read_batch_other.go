@@ -1,4 +1,5 @@
 // +build !linux !amd64
+// +build !windows
 
 package batch
 
