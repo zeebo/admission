@@ -24,14 +24,16 @@ func Read(sc syscall.RawConn, msgs []*Message) (int, error) {
 
 	err := sc.Read(func(fd uintptr) bool {
 		for _, msg := range msgs {
-			// check whether there is more data
-			var poll wsapollfd
-			poll.fd = syscall.Handle(fd)
-			poll.events = pollrdnorm
+			if messageCount != 0 {
+				// check whether there is more data
+				var poll wsapollfd
+				poll.fd = syscall.Handle(fd)
+				poll.events = pollrdnorm
 
-			pollerr = wsapoll(&poll, 1, 0)
-			if pollerr != nil || poll.events != poll.revents {
-				return true
+				pollerr = wsapoll(&poll, 1, 0)
+				if pollerr != nil || poll.events != poll.revents {
+					return true
+				}
 			}
 
 			var read uint32

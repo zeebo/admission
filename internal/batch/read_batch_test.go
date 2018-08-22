@@ -32,13 +32,10 @@ func TestRead(t *testing.T) {
 	listenerRawConn, err := listenerConn.SyscallConn()
 	assertNoError(t, err)
 
-	var waitForWrites sync.WaitGroup
-	waitForWrites.Add(1)
 	result := make(chan []*Message, 1)
 
 	// try to read it
 	go func() {
-		waitForWrites.Wait()
 		defer close(result)
 
 		messages := []*Message{new(Message), new(Message), new(Message)}
@@ -51,10 +48,8 @@ func TestRead(t *testing.T) {
 	}()
 
 	// write it
-	go func() {
-		writerConn.Write([]byte("hello"))
-		waitForWrites.Done()
-	}()
+	time.Sleep(time.Millisecond)
+	writerConn.Write([]byte("hello"))
 
 	var messages []*Message
 	select {
@@ -131,4 +126,45 @@ func TestReadMultiple(t *testing.T) {
 	if string(messages[0].Data) != "hello" || string(messages[1].Data) != "world" {
 		t.Fatalf("got: %+v %+v", messages[0], messages[1])
 	}
+}
+
+func TestClose(t *testing.T) {
+	// do a huge ceremony to pipe two udp conns.
+	listener, err := net.ListenPacket("udp", ":0")
+	assertNoError(t, err)
+	defer listener.Close()
+
+	// type assert concrete udp stuff
+	listenerConn := listener.(*net.UDPConn)
+	addr := listenerConn.LocalAddr().(*net.UDPAddr)
+
+	writerConn, err := net.DialUDP("udp", nil, addr)
+	assertNoError(t, err)
+	defer writerConn.Close()
+
+	// do a huge ceremony to read and write a packet
+	listenerRawConn, err := listenerConn.SyscallConn()
+	assertNoError(t, err)
+
+	done := make(chan struct{}, 1)
+
+	// try to read it
+	go func() {
+		defer close(done)
+
+		messages := []*Message{new(Message), new(Message), new(Message)}
+		n, err := Read(listenerRawConn, messages)
+		if err == nil {
+			t.Fatalf("expected error: %v %v", n, err)
+		}
+
+		done <- struct{}{}
+	}()
+
+	err = listener.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	<-done
 }
