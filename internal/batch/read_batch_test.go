@@ -2,6 +2,7 @@ package batch
 
 import (
 	"net"
+	"sync"
 	"testing"
 	"time"
 )
@@ -28,32 +29,106 @@ func TestRead(t *testing.T) {
 	defer writerConn.Close()
 
 	// do a huge ceremony to read and write a packet
-	listnerRawConn, err := listenerConn.SyscallConn()
+	listenerRawConn, err := listenerConn.SyscallConn()
 	assertNoError(t, err)
 
-	// give it a second or ten
-	chm := make(chan *Message)
-	time.AfterFunc(10*time.Second, func() { close(chm) })
+	var waitForWrites sync.WaitGroup
+	waitForWrites.Add(1)
+	result := make(chan []*Message, 1)
 
 	// try to read it
 	go func() {
-		msg := new(Message)
-		n, err := Read(listnerRawConn, []*Message{msg})
+		waitForWrites.Wait()
+		defer close(result)
+
+		messages := []*Message{new(Message), new(Message), new(Message)}
+		n, err := Read(listenerRawConn, messages)
 		if n != 1 || err != nil {
 			t.Fatalf("read error: %v %v", n, err)
 		}
-		chm <- msg
+
+		result <- messages[:n]
 	}()
 
 	// write it
-	writerConn.Write([]byte("hello"))
-	msg := <-chm
+	go func() {
+		writerConn.Write([]byte("hello"))
+		waitForWrites.Done()
+	}()
+
+	var messages []*Message
+	select {
+	case messages = <-result:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout")
+	}
 
 	// check it
-	if msg == nil {
-		t.Fatal("nil message")
+	if len(messages) != 1 {
+		t.Fatal("invalid number of messages")
 	}
-	if string(msg.Data) != "hello" {
-		t.Fatalf("msg: %+v", msg)
+
+	if string(messages[0].Data) != "hello" {
+		t.Fatalf("got: %+v", messages[0])
+	}
+}
+
+func TestReadMultiple(t *testing.T) {
+	// do a huge ceremony to pipe two udp conns.
+	listener, err := net.ListenPacket("udp", ":0")
+	assertNoError(t, err)
+	defer listener.Close()
+
+	// type assert concrete udp stuff
+	listenerConn := listener.(*net.UDPConn)
+	addr := listenerConn.LocalAddr().(*net.UDPAddr)
+
+	writerConn, err := net.DialUDP("udp", nil, addr)
+	assertNoError(t, err)
+	defer writerConn.Close()
+
+	// do a huge ceremony to read and write a packet
+	listenerRawConn, err := listenerConn.SyscallConn()
+	assertNoError(t, err)
+
+	var waitForWrites sync.WaitGroup
+	waitForWrites.Add(1)
+	result := make(chan []*Message, 1)
+
+	// try to read it
+	go func() {
+		defer close(result)
+		waitForWrites.Wait()
+
+		messages := []*Message{new(Message), new(Message), new(Message)}
+		n, err := Read(listenerRawConn, messages)
+		if n != 2 || err != nil {
+			t.Fatalf("read error: %v %v", n, err)
+		}
+
+		result <- messages[:n]
+	}()
+
+	// write it
+	go func() {
+		writerConn.Write([]byte("hello"))
+		writerConn.Write([]byte("world"))
+		waitForWrites.Done()
+	}()
+
+	var messages []*Message
+	select {
+	case messages = <-result:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout")
+	}
+
+	// check it
+	if len(messages) != 2 {
+		t.Fatal("invalid number of messages")
+	}
+
+	if string(messages[0].Data) != "hello" || string(messages[1].Data) != "world" {
+		t.Fatalf("got: %+v %+v", messages[0], messages[1])
 	}
 }
