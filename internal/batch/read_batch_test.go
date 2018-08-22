@@ -2,6 +2,7 @@ package batch
 
 import (
 	"net"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -69,6 +70,10 @@ func TestRead(t *testing.T) {
 }
 
 func TestReadMultiple(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "windows" {
+		t.Skip("unimplemented")
+	}
+
 	// do a huge ceremony to pipe two udp conns.
 	listener, err := net.ListenPacket("udp", ":0")
 	assertNoError(t, err)
