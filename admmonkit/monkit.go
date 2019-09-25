@@ -57,7 +57,7 @@ func Send(ctx context.Context, opts Options) (err error) {
 		w   = admproto.NewWriterWith(opts.ProtoOpts)
 	)
 
-	opts.Registry.Stats(func(name string, value float64) {
+	opts.Registry.Stats(func(series monkit.Series, value float64) {
 		// if we have any errors, stop.
 		if err != nil {
 			return
@@ -77,11 +77,11 @@ func Send(ctx context.Context, opts Options) (err error) {
 			}
 
 			// add the value to the buffer
-			buf, err = w.Append(buf, name, value)
+			buf, err = w.Append(buf, series.String(), value)
 			if err != nil {
 				// not fatal, just back up to before, but let someone know
 				// it has been skipped.
-				log.Println("skipped metric", name, "because", err)
+				log.Println("skipped metric", series.String(), "because", err)
 				buf, err = before, nil
 				return
 			}
