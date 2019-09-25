@@ -5,7 +5,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/zeebo/admission/internal/batch"
+	"github.com/zeebo/admission/v2/internal/batch"
 )
 
 // Handler is a type that can handle messages.

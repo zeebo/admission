@@ -1,4 +1,4 @@
-module github.com/zeebo/admission
+module github.com/zeebo/admission/v2
 
 go 1.12
 
