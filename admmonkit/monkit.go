@@ -7,7 +7,7 @@ import (
 	"net"
 
 	"github.com/zeebo/admission/admproto"
-	"gopkg.in/spacemonkeygo/monkit.v2"
+	"gopkg.in/spacemonkeygo/monkit/v3"
 )
 
 // Options allows you to control where and how Send sends the data.
