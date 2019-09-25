@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/zeebo/admission/admproto"
+	"github.com/zeebo/admission/v2/admproto"
 	"github.com/spacemonkeygo/monkit/v3"
 )
 
