@@ -6,8 +6,8 @@ import (
 	"log"
 	"net"
 
-	"github.com/zeebo/admission/v2/admproto"
 	"github.com/spacemonkeygo/monkit/v3"
+	"github.com/zeebo/admission/v2/admproto"
 )
 
 // Options allows you to control where and how Send sends the data.
@@ -57,7 +57,7 @@ func Send(ctx context.Context, opts Options) (err error) {
 		w   = admproto.NewWriterWith(opts.ProtoOpts)
 	)
 
-	opts.Registry.Stats(func(series monkit.Series, value float64) {
+	opts.Registry.Stats(func(key monkit.SeriesKey, field string, value float64) {
 		// if we have any errors, stop.
 		if err != nil {
 			return
@@ -77,11 +77,12 @@ func Send(ctx context.Context, opts Options) (err error) {
 			}
 
 			// add the value to the buffer
-			buf, err = w.Append(buf, series.String(), value)
+			series := key.WithField(field)
+			buf, err = w.Append(buf, series, value)
 			if err != nil {
 				// not fatal, just back up to before, but let someone know
 				// it has been skipped.
-				log.Println("skipped metric", series.String(), "because", err)
+				log.Println("skipped metric", series, "because", err)
 				buf, err = before, nil
 				return
 			}

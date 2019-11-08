@@ -1,5 +1,5 @@
-github.com/spacemonkeygo/monkit/v3 v3.0.0-20190926200430-51dbb2c6b0e1 h1:IaVR0uiMMAn4f5y/fZ293QQ4YOn49zpgP/w6DW+nqN4=
-github.com/spacemonkeygo/monkit/v3 v3.0.0-20190926200430-51dbb2c6b0e1/go.mod h1:JcK1pCbReQsOsMKF/POFSZCq7drXFybgGmbc27tuwes=
+github.com/spacemonkeygo/monkit/v3 v3.0.0-20191108235033-eacca33b3037 h1:rgsRhorHN5U4QKFkZvt1Xp/UzDLrNkOiL6XZKoKfOnE=
+github.com/spacemonkeygo/monkit/v3 v3.0.0-20191108235033-eacca33b3037/go.mod h1:JcK1pCbReQsOsMKF/POFSZCq7drXFybgGmbc27tuwes=
 github.com/spacemonkeygo/monotime v0.0.0-20180824235756-e3f48a95f98a h1:8+cCjxhToanKmxLIbuyBNe2EnpgwhiivsIaRJstDRFA=
 github.com/spacemonkeygo/monotime v0.0.0-20180824235756-e3f48a95f98a/go.mod h1:ul4bvvnCOPZgq8w0nTkSmWVg/hauVpFS97Am1YM1XXo=
 github.com/zeebo/errs v1.2.2 h1:5NFypMTuSdoySVTqlNs1dEoU21QVamMQJxW/Fii5O7g=
