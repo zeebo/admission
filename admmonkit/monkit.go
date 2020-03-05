@@ -29,6 +29,9 @@ type Options struct {
 
 	// ProtoOps allows you to set protocol options.
 	ProtoOpts admproto.Options
+
+	// Headers allow you to set arbitrary key/value pairs to be included in each packet send
+	Headers map[string]string
 }
 
 // Send will push all of the metrics in the registry to the address with the
@@ -70,9 +73,12 @@ func Send(ctx context.Context, opts Options) (err error) {
 			// always ensure the buffer has the prefix in it.
 			if len(buf) == 0 {
 				// if we can't add the application and instance id, it's fatal.
-				buf, err = w.Begin(buf, opts.Application, opts.InstanceId)
+				buf, err = w.Begin(buf, opts.Application, opts.InstanceId, len(opts.Headers))
 				if err != nil {
 					return
+				}
+				for key, value := range opts.Headers {
+					buf, err = w.AppendHeader(buf, []byte(key), []byte(value))
 				}
 			}
 

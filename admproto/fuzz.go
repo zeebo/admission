@@ -6,7 +6,7 @@ func Fuzz(data []byte) int {
 	var r Reader
 	var err error
 
-	data, _, _, err = r.Begin(data)
+	data, _, _, _, err = r.Begin(data)
 	if err != nil {
 		return 0
 	}

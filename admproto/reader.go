@@ -24,10 +24,10 @@ func (r *Reader) Reset() {
 
 // Begin returns the header information out of the packet, and the remaining
 // data in the packet.
-func (r *Reader) Begin(in []byte) (out, application, instance_id []byte, err error) {
+func (r *Reader) Begin(in []byte) (out, application, instance_id []byte, num_headers int, err error) {
 	in, version, err := consume(in, 1)
 	if err != nil {
-		return nil, nil, nil, Error.Wrap(err)
+		return nil, nil, nil, 0, Error.Wrap(err)
 	}
 
 	// determine the float encoding from the version
@@ -39,22 +39,52 @@ func (r *Reader) Begin(in []byte) (out, application, instance_id []byte, err err
 	case float64Version:
 		r.encoding = Float64Encoding
 	default:
-		return nil, nil, nil, Error.New("unknown version: %d", version[0])
+		return nil, nil, nil, 0, Error.New("unknown version: %d", version[0])
 	}
 
 	// determine if headers are included from the version
+	var has_headers bool
 	switch version[0] & headerMask {
 	case headersExcluded:
 	case headersIncluded:
+		has_headers = true
 	default:
-		return nil, nil, nil, Error.New("unknown version: %d", version[0])
+		return nil, nil, nil, 0, Error.New("unknown version: %d", version[0])
 	}
 
 	in, length, err := consume(in, 1)
 	if err != nil {
-		return nil, nil, nil, Error.Wrap(err)
+		return nil, nil, nil, 0, Error.Wrap(err)
 	}
 	in, application, err = consume(in, int(length[0]))
+	if err != nil {
+		return nil, nil, nil, 0, Error.Wrap(err)
+	}
+
+	in, length, err = consume(in, 1)
+	if err != nil {
+		return nil, nil, nil, 0, Error.Wrap(err)
+	}
+	in, instance_id, err = consume(in, int(length[0]))
+
+	if has_headers {
+		in, length, err = consume(in, 1)
+		if err != nil {
+			return nil, nil, nil, 0, Error.Wrap(err)
+		}
+		num_headers = int(length[0])
+	}
+
+	return in, application, instance_id, num_headers, err
+}
+
+func (r *Reader) NextHeader(in []byte) (out, key, val []byte, err error) {
+	in, length, err := consume(in, 1)
+	if err != nil {
+		return nil, nil, nil, Error.Wrap(err)
+	}
+
+	in, key, err = consume(in, int(length[0]))
 	if err != nil {
 		return nil, nil, nil, Error.Wrap(err)
 	}
@@ -63,9 +93,13 @@ func (r *Reader) Begin(in []byte) (out, application, instance_id []byte, err err
 	if err != nil {
 		return nil, nil, nil, Error.Wrap(err)
 	}
-	in, instance_id, err = consume(in, int(length[0]))
 
-	return in, application, instance_id, err
+	in, val, err = consume(in, int(length[0]))
+	if err != nil {
+		return nil, nil, nil, Error.Wrap(err)
+	}
+
+	return in, key, val, nil
 }
 
 // Next consumes bytes from in, returns the key and value, and returns the rest

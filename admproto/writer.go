@@ -29,14 +29,18 @@ func (w *Writer) Reset() {
 }
 
 // Begin appends header information to the buffer.
-func (w *Writer) Begin(in []byte, application string, instance_id []byte) (
+func (w *Writer) Begin(in []byte, application string, instance_id []byte, num_headers int) (
 	out []byte, err error) {
 
+	// Check that length does not exceed 255 so we can encode the length in a single byte
 	if len(application) > 255 {
 		return nil, Error.New("application too long")
 	}
 	if len(instance_id) > 255 {
 		return nil, Error.New("instance_id too long")
+	}
+	if num_headers > 255 {
+		return nil, Error.New("too many headers")
 	}
 
 	var version byte
@@ -54,7 +58,11 @@ func (w *Writer) Begin(in []byte, application string, instance_id []byte) (
 	}
 
 	// we do not send headers yet
-	version |= headersExcluded
+	if num_headers > 0 {
+		version |= headersIncluded
+	} else {
+		version |= headersExcluded
+	}
 
 	in = append(in, version)
 	in = append(in, byte(len(application)))
@@ -62,6 +70,25 @@ func (w *Writer) Begin(in []byte, application string, instance_id []byte) (
 	in = append(in, byte(len(instance_id)))
 	in = append(in, instance_id...)
 
+	if num_headers > 0 {
+		in = append(in, byte(num_headers))
+	}
+
+	return in, nil
+}
+
+// AppendHeader adds the key and value to the starting bytes of the packet
+func (w *Writer) AppendHeader(in, key, value []byte) (out []byte, err error) {
+	if len(key) > 255 {
+		return nil, Error.New("header key %s too long", key)
+	}
+	if len(value) > 255 {
+		return nil, Error.New("header value %s too long", value)
+	}
+	in = append(in, byte(len(key)))
+	in = append(in, key...)
+	in = append(in, byte(len(value)))
+	in = append(in, value...)
 	return in, nil
 }
 
