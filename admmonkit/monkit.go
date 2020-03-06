@@ -79,6 +79,9 @@ func Send(ctx context.Context, opts Options) (err error) {
 				}
 				for key, value := range opts.Headers {
 					buf, err = w.AppendHeader(buf, []byte(key), []byte(value))
+					if err != nil {
+						return
+					}
 				}
 			}
 
