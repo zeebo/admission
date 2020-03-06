@@ -51,9 +51,7 @@ func TestReaderWriter(t *testing.T) {
 		var header_key, header_value []byte
 		for i := 0; i < num_headers; i++ {
 			buf, header_key, header_value, err = r.NextHeader(buf)
-			if err != nil {
-				t.Fatal("err reading key", err)
-			}
+			assertNoError(t, err)
 			headers[string(header_key)] = string(header_value)
 		}
 		if !reflect.DeepEqual(expected_headers, headers) {
