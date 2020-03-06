@@ -15,7 +15,7 @@ func main() {
 	for {
 		var w admproto.Writer
 		buf = buf[:0]
-		buf, _ = w.Begin(buf, "app", []byte("ins"))
+		buf, _ = w.Begin(buf, "app", []byte("ins"), 0)
 		values := rand.Intn(10)
 		for i := 0; i < values; i++ {
 			buf, _ = w.Append(buf, string(randomValue()), rand.Float64())

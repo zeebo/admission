@@ -1,6 +1,9 @@
 package admproto
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func assertNoError(t *testing.T, err error) {
 	t.Helper()
@@ -10,7 +13,7 @@ func assertNoError(t *testing.T, err error) {
 }
 
 func TestReaderWriter(t *testing.T) {
-	runTest := func(t *testing.T, options Options) {
+	runTest := func(t *testing.T, options Options, expected_headers map[string]string) {
 		var (
 			buf []byte
 			r   Reader
@@ -18,8 +21,12 @@ func TestReaderWriter(t *testing.T) {
 			err error
 		)
 
-		buf, err = w.Begin(buf, "testapp", []byte("ins-id"))
+		buf, err = w.Begin(buf, "testapp", []byte("ins-id"), len(expected_headers))
 		assertNoError(t, err)
+		for key, value := range expected_headers {
+			buf, err = w.AppendHeader(buf, []byte(key), []byte(value))
+			assertNoError(t, err)
+		}
 		buf, err = w.Append(buf, "hello", 0)
 		assertNoError(t, err)
 		buf, err = w.Append(buf, "hello.world", 1)
@@ -31,10 +38,24 @@ func TestReaderWriter(t *testing.T) {
 
 		t.Logf("%x", buf)
 
-		buf, application, ins_id, err := r.Begin(buf)
+		buf, application, ins_id, num_headers, err := r.Begin(buf)
 		assertNoError(t, err)
 		if string(application) != "testapp" || string(ins_id) != "ins-id" {
 			t.Fatal("failed on begin")
+		}
+
+		var headers map[string]string
+		if num_headers > 0 {
+			headers = make(map[string]string, num_headers)
+		}
+		var header_key, header_value []byte
+		for i := 0; i < num_headers; i++ {
+			buf, header_key, header_value, err = r.NextHeader(buf)
+			assertNoError(t, err)
+			headers[string(header_key)] = string(header_value)
+		}
+		if !reflect.DeepEqual(expected_headers, headers) {
+			t.Fatal("headers not as expected")
 		}
 
 		buf, key, value, err := r.Next(buf)
@@ -67,12 +88,20 @@ func TestReaderWriter(t *testing.T) {
 	}
 
 	t.Run("Float16", func(t *testing.T) {
-		runTest(t, Options{FloatEncoding: Float16Encoding})
+		runTest(t, Options{FloatEncoding: Float16Encoding},
+			map[string]string{
+				"asfd": "a",
+				"qwer": "b",
+			})
+
 	})
 	t.Run("Float32", func(t *testing.T) {
-		runTest(t, Options{FloatEncoding: Float32Encoding})
+		runTest(t, Options{FloatEncoding: Float32Encoding},
+			map[string]string{
+				"asfd": "a",
+			})
 	})
 	t.Run("Float64", func(t *testing.T) {
-		runTest(t, Options{FloatEncoding: Float64Encoding})
+		runTest(t, Options{FloatEncoding: Float64Encoding}, nil)
 	})
 }
