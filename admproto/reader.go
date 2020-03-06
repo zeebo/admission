@@ -30,13 +30,22 @@ func (r *Reader) Begin(in []byte) (out, application, instance_id []byte, err err
 		return nil, nil, nil, Error.Wrap(err)
 	}
 
-	switch version[0] {
+	// determine the float encoding from the version
+	switch version[0] & floatMask {
 	case float16Version:
 		r.encoding = Float16Encoding
 	case float32Version:
 		r.encoding = Float32Encoding
 	case float64Version:
 		r.encoding = Float64Encoding
+	default:
+		return nil, nil, nil, Error.New("unknown version: %d", version[0])
+	}
+
+	// determine if headers are included from the version
+	switch version[0] & headerMask {
+	case headersExcluded:
+	case headersIncluded:
 	default:
 		return nil, nil, nil, Error.New("unknown version: %d", version[0])
 	}

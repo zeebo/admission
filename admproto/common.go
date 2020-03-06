@@ -52,12 +52,12 @@ func consume(in []byte, n int) (out, data []byte, err error) {
 
 // a list of versions and what they mean
 const (
-	// incenc encoded keys with float16 values
-	float16Version byte = 0
+	floatMask      byte = 0b11 // mask to select the float encoding version
+	float16Version byte = 0b00 // incenc encoded keys with float16 values
+	float32Version byte = 0b01 // incenc encoded keys with float32 values
+	float64Version byte = 0b10 // incenc encoded keys with float64 values
 
-	// incenc encoded keys with float32 values
-	float32Version byte = 1
-
-	// incenc encoded keys with float64 values
-	float64Version byte = 2
+	headerMask      byte = 0b100 // mask to select the header's included version
+	headersExcluded byte = 0b000 // headers are not included in the packet
+	headersIncluded byte = 0b100 // headers are included in the packet
 )

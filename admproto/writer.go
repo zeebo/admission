@@ -40,16 +40,21 @@ func (w *Writer) Begin(in []byte, application string, instance_id []byte) (
 	}
 
 	var version byte
+
+	// signal what float encoding we're using
 	switch w.options.FloatEncoding {
 	case Float16Encoding:
-		version = float16Version
+		version |= float16Version
 	case Float32Encoding:
-		version = float32Version
+		version |= float32Version
 	case Float64Encoding:
-		version = float64Version
+		version |= float64Version
 	default:
 		return nil, Error.New("unknown float encoding: %d", w.options.FloatEncoding)
 	}
+
+	// we do not send headers yet
+	version |= headersExcluded
 
 	in = append(in, version)
 	in = append(in, byte(len(application)))
