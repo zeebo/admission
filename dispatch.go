@@ -4,7 +4,7 @@ import (
 	"context"
 	"syscall"
 
-	"github.com/zeebo/admission/v2/internal/batch"
+	"github.com/zeebo/admission/v3/internal/batch"
 	"github.com/zeebo/errs"
 )
 

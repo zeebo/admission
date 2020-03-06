@@ -6,7 +6,7 @@ import (
 	"math/rand"
 
 	"github.com/dvyukov/go-fuzz/gen"
-	"github.com/zeebo/admission/v2/admproto"
+	"github.com/zeebo/admission/v3/admproto"
 )
 
 func main() {
