@@ -5,6 +5,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"syscall"
 
 	"github.com/spacemonkeygo/monkit/v3"
 	"github.com/zeebo/admission/v3/admproto"
@@ -131,7 +132,7 @@ func Send(ctx context.Context, opts Options) (err error) {
 // it to the conn. It logs if there was an error.
 func sendPacket(ctx context.Context, conn *net.UDPConn, buf []byte) {
 	_, err := conn.Write(admproto.AddChecksum(buf))
-	if err != nil {
+	if err != nil && err != syscall.ENOBUFS {
 		log.Println("failed to send packet:", err)
 	}
 }
