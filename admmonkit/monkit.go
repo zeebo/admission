@@ -116,6 +116,12 @@ func Send(ctx context.Context, opts Options) (err error) {
 			// add the point again.
 			w.Reset()
 			buf = buf[:0]
+
+			// if we had no buffer at the start, then we sent this metric, so
+			// return to get the next metric.
+			if len(before) == 0 {
+				return
+			}
 		}
 	})
 
